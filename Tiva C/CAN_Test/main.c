@@ -23,7 +23,8 @@ unsigned char ESP2_Frame[8];
 unsigned char ESP3_Frame[8];
 unsigned char ESP4_Frame[8];
 
-unsigned char sendData[8] = {'h', 'e' , 'l', 't', 'i', 'v', 's'};
+/* array of data to send */
+unsigned char sendData[8] = {'h', 'e' , 'l', 'o' , 't', 'i', 'v', 'a'};
 
 void sendCANMessage(uint32_t id, uint8_t* data, uint8_t length)
 {
@@ -47,20 +48,20 @@ void CANIntHandler(void)
         errFlag = 1;
     }
     else if(status == 1)
-    { /* msg object 1 */
-        CANIntClear(CAN0_BASE, 1); // clear interrupt
-        rxFlag = 1; // set rx flag
-        errFlag = 0; // clear any error flags
+    { /* msg object 1 (reception) */
+        CANIntClear(CAN0_BASE, 1); /* clear interrupt */
+        rxFlag = 1; /* set rx flag */
+        errFlag = 0; /* clear any error flags */
     }
     else if (status == 2)
     { /* msg object 2 (transmission) */
-        CANIntClear(CAN0_BASE, 2); // clear interrupt
-        txFlag = 1; // set tx flag
-        errFlag = 0; // clear any error flags
+        CANIntClear(CAN0_BASE, 2); /* clear interrupt */
+        txFlag = 1; /* set tx flag */
+        errFlag = 0; /* clear any error flags */
     }
     else
     {
-        // should never happen
+        /* should never happen */
     }
 
 }
@@ -68,13 +69,13 @@ void CANIntHandler(void)
 
 int main(void)
 {
-    tCANMsgObject msg; // the CAN msg object
-    unsigned char msgData[8]; // 8 byte buffer for rx message data
+    tCANMsgObject msg; /* the CAN msg object */
+    unsigned char msgData[8]; /* 8 byte buffer for rx message data */
 
-    // Run from crystal at 50Mhz
+    /* Run from crystal at 50Mhz */
     SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
 
-    // Set up CAN0
+    /* Set up CAN0 */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     GPIOPinConfigure(GPIO_PB4_CAN0RX);
     GPIOPinConfigure(GPIO_PB5_CAN0TX);
@@ -82,32 +83,36 @@ int main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
     CANInit(CAN0_BASE);
     CANBitRateSet(CAN0_BASE, SysCtlClockGet(), 500000);
-    CANIntRegister(CAN0_BASE, CANIntHandler); // use dynamic vector table allocation
+    CANIntRegister(CAN0_BASE, CANIntHandler); /* use dynamic vector table allocation */
     CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
     IntEnable(INT_CAN0);
     CANEnable(CAN0_BASE);
 
 
-    // Use ID and mask 0 to recieved messages with any CAN ID
+    /* Use ID and mask 0 to recieved messages with any CAN ID */
     msg.ui32MsgID = 0;
     msg.ui32MsgIDMask = 0;
     msg.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_TX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    msg.ui32MsgLen = 8; // allow up to 8 bytes
+    msg.ui32MsgLen = 8; /* allow up to 8 bytes */
 
-    // Load msg into CAN peripheral message object 1 so it can trigger interrupts on any matched rx messages
+    /* Load msg into CAN peripheral message object 1 so it can trigger interrupts on any matched rx messages */
     CANMessageSet(CAN0_BASE, 1, &msg, MSG_OBJ_TYPE_RX);
 
 
     while(1) {
 
-        if(rxFlag) { // rx interrupt has occured
 
-            msg.pui8MsgData = msgData; // set pointer to rx buffer
-            CANMessageGet(CAN0_BASE, 1, &msg, 0); // read CAN message object 1 from CAN peripheral
+        if(rxFlag) 
+		{
+			/* rx interrupt has occured */
+			
+			
+            msg.pui8MsgData = msgData; /* set pointer to rx buffer */
+            CANMessageGet(CAN0_BASE, 1, &msg, 0); /* read CAN message object 1 from CAN peripheral */
 
-            rxFlag = 0; // clear rx flag
+            rxFlag = 0; // clear rx flag */
 
-            // Process the received message and store it in the corresponding array
+            /* Process the received message and store it in the corresponding array */
             switch (msg.ui32MsgID)
             {
             case 0x12:
@@ -123,14 +128,13 @@ int main(void)
                 memcpy(ESP4_Frame, msgData, 8);
                 break;
             default:
-                // Handle unexpected ID
+                /* Handle unexpected ID */
                 break;
             }
 
             if(msg.ui32Flags & MSG_OBJ_DATA_LOST)
             {
-              // check msg flags for any lost messages
-              // UARTprintf("CAN message loss detected\n");
+              /* check msg flags for any lost messages */
             }
         }
 
@@ -138,9 +142,9 @@ int main(void)
 
         if (txFlag)
         {
-            // Transmission was successful
+            /* Transmission was successful */
             txFlag = 0; // clear tx flag
-            // You can add additional actions here if needed
+            /* You can add additional actions here if needed */
         }
     }
 }
