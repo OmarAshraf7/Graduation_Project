@@ -1,0 +1,11 @@
+"./can.obj"
+"./gpio.obj"
+"./interrupt.obj"
+"./main.obj"
+"./sysctl.obj"
+"./tm4c123gh6pm_startup_ccs.obj"
+"./uart.obj"
+"./uartstdio.obj"
+"../tm4c123gh6pm.cmd"
+-llibc.a
+-l"C:/ti/TivaWare_C_Series-2.2.0.295/driverlib/ccs/Debug/driverlib.lib"

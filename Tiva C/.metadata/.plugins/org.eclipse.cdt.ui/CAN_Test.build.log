@@ -1,0 +1,8 @@
+
+**** Build of configuration Debug for project CAN_Test ****
+
+"C:\\ti\\ccs1250\\ccs\\utils\\bin\\gmake" -k -j 16 all -O 
+ 
+gmake[1]: 'CAN_Test.out' is up to date.
+
+**** Build Finished ****
