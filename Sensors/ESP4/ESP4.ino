@@ -30,7 +30,7 @@ BLEClient* pClient = BLEDevice::createClient();
 
 int scanTime = 0; //in seconds
 int rssi = 0;
-const int A = -59;       // Measured RSSI at 1 meter from BLE device
+const int A = -71;       // Measured RSSI at 1 meter from BLE device
 const int n = 2;   // Path-loss exponent (depends on the environment)
 double distance_m = 0; //distance in meters
 int distance_cm = 0; //distance in centimeters

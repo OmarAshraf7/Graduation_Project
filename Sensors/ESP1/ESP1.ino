@@ -30,10 +30,16 @@ BLEClient* pClient = BLEDevice::createClient();
 
 int scanTime = 0; //in seconds
 int rssi = 0;
-const int A = -59;       // Measured RSSI at 1 meter from BLE device
+const int A = -71;       // Measured RSSI at 1 meter from BLE device
 const int n = 2;   // Path-loss exponent (depends on the environment)
 double distance_m = 0; //distance in meters
 int distance_cm = 0; //distance in centimeters
+
+// int samples_counter = 0 ;
+// int avg_arr[200] ;
+// int avg_arr_sum = 0;
+// float avg_value;
+// int truncated_avg;
 
 
 // Extracting digits
@@ -214,15 +220,26 @@ void calculateDistance(int rssi)
 {
   // Calculate distance using the empirical formula 
   distance_m = pow(10.0, ((A - rssi) / (10.0 * n))); // In meters
-  // Serial.print("Distance: ");
-  // Serial.print(distance_m);
-  // Serial.println(" m");
-
   distance_cm = distance_m * 100; //Convert it to centimeters 
   Serial.print("Distance: ");
   Serial.print(distance_cm);
   Serial.println(" cm");
 
+  // avg_arr[samples_counter] = distance_cm; 
+  // samples_counter ++;
+  // if (samples_counter == 199)
+  //     {
+  //       samples_counter = 0;
+  //       for(int k = 0 ; k < 200 ; k++)
+  //       {
+  //           avg_arr_sum += avg_arr[k]; 
+  //       }
+  //       avg_value = (float)avg_arr_sum / 200 ; 
+  //       avg_arr_sum = 0;
+  //       truncated_avg = (int)avg_value;
+  //       Serial.println(truncated_avg);
+  //     }
+  
   digits_extractor(distance_cm);
 }
 
