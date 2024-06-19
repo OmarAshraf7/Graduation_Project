@@ -7,8 +7,8 @@
 
 //==================================================================================//
 
-#define TX_GPIO_NUM   25  // Connects to CTX
-#define RX_GPIO_NUM   26  // Connects to CRX
+#define TX_GPIO_NUM   4  // Connects to CTX
+#define RX_GPIO_NUM   5  // Connects to CRX
 #define CAN_ID      0x15 
 
 //==================================================================================//
