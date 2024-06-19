@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdbool.h>
-
 #include "tm4c123gh6pm.h"
 #include "hw_memmap.h"
 #include "hw_types.h"
@@ -13,6 +12,10 @@
 #include "pin_map.h"
 #include "uartstdio.h"
 
+/*********************************************************************************************************
+ *                      				  Global Variables                                               *
+ *********************************************************************************************************/
+ 
 volatile bool txFlag = 0; /* msg sent flag */
 volatile bool rxFlag = 0; /* msg recieved flag */
 volatile bool errFlag = 0; /* error flag */
@@ -26,7 +29,31 @@ unsigned char ESP4_Frame[8];
 /* array of data to send */
 unsigned char sendData[8] = {'h', 'e' , 'l', 'o' , 't', 'i', 'v', 'a'};
 
-void sendCANMessage(uint32_t id, uint8_t* data, uint8_t length)
+
+/*********************************************************************************************************
+ *                      				Functions Prototypes                                             *
+ *********************************************************************************************************/
+ 
+void CANreceive(void);
+void CANsend(uint32_t id, uint8_t* data, uint8_t length);
+
+/*********************************************************************************************************
+ *                      				Functions Definitions                                            *
+ *********************************************************************************************************/
+ 
+void CANreceive(void)
+{
+	/* Use ID and mask 0 to recieve messages with any CAN ID */
+    msg.ui32MsgID = 0;
+    msg.ui32MsgIDMask = 0;
+    msg.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_TX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
+    msg.ui32MsgLen = 8; /* allow up to 8 bytes */
+
+    /* Load msg into CAN peripheral message object 1 so it can trigger interrupts on any matched rx messages */
+    CANMessageSet(CAN0_BASE, 1, &msg, MSG_OBJ_TYPE_RX);
+}
+
+void CANsend(uint32_t id, uint8_t* data, uint8_t length)
 {
     tCANMsgObject msg;
     msg.ui32MsgID = id;
@@ -35,10 +62,13 @@ void sendCANMessage(uint32_t id, uint8_t* data, uint8_t length)
     msg.ui32MsgLen = length;
     msg.pui8MsgData = data;
 
-    CANMessageSet(CAN0_BASE, 2, &msg, MSG_OBJ_TYPE_TX); // use message object 2 for transmission
+    CANMessageSet(CAN0_BASE, 2, &msg, MSG_OBJ_TYPE_TX); /* use message object 2 for transmission */
 }
 
-/* CAN interrupt handler */
+/*********************************************************************************************************
+ *                      				CAN interrupt handler                                            *
+ *********************************************************************************************************/
+
 void CANIntHandler(void)
 {
     unsigned long status = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE); /* read interrupt status */
@@ -63,9 +93,11 @@ void CANIntHandler(void)
     {
         /* should never happen */
     }
-
 }
 
+/*********************************************************************************************************
+ *                      					Main Function                                                *
+ *********************************************************************************************************/
 
 int main(void)
 {
@@ -88,16 +120,8 @@ int main(void)
     IntEnable(INT_CAN0);
     CANEnable(CAN0_BASE);
 
-
-    /* Use ID and mask 0 to recieved messages with any CAN ID */
-    msg.ui32MsgID = 0;
-    msg.ui32MsgIDMask = 0;
-    msg.ui32Flags = MSG_OBJ_RX_INT_ENABLE | MSG_OBJ_TX_INT_ENABLE | MSG_OBJ_USE_ID_FILTER;
-    msg.ui32MsgLen = 8; /* allow up to 8 bytes */
-
-    /* Load msg into CAN peripheral message object 1 so it can trigger interrupts on any matched rx messages */
-    CANMessageSet(CAN0_BASE, 1, &msg, MSG_OBJ_TYPE_RX);
-
+	/* Enable CAN receiver */	
+	CANreceive();
 
     while(1) {
 
@@ -110,7 +134,7 @@ int main(void)
             msg.pui8MsgData = msgData; /* set pointer to rx buffer */
             CANMessageGet(CAN0_BASE, 1, &msg, 0); /* read CAN message object 1 from CAN peripheral */
 
-            rxFlag = 0; // clear rx flag */
+            rxFlag = 0; /* clear rx flag */
 
             /* Process the received message and store it in the corresponding array */
             switch (msg.ui32MsgID)
