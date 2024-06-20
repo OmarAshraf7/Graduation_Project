@@ -5,20 +5,26 @@
 #include <CAN.h>
 #include "esp32-hal-cpu.h"
 
-//==================================================================================//
+//=======================================================================================================//
+//                                           Definitions                                                 //
+//=======================================================================================================//
 
 #define TX_GPIO_NUM   4  // Connects to CTX
 #define RX_GPIO_NUM   5  // Connects to CRX
-#define CAN_ID      0x13 
+#define CAN_ID        0x13 
 
-//==================================================================================//
+//=======================================================================================================//
+//                                           BLE UUIDs                                                   //
+//=======================================================================================================//
 
 // The remote service we wish to connect to.
 static BLEUUID serviceUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 // The characteristic of the remote service we are interested in.
 static BLEUUID    charUUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
 
-//==================================================================================//
+//=======================================================================================================//
+//                                          Global Variables                                             //
+//=======================================================================================================//
 
 static boolean doConnect = false;
 static boolean connected = false;
@@ -26,15 +32,15 @@ static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 BLEClient* pClient = BLEDevice::createClient();
 
-//==================================================================================//
-
-int scanTime = 0; //in seconds
-int rssi = 0;
-const int A = -71;       // Measured RSSI at 1 meter from BLE device
-const int n = 2;   // Path-loss exponent (depends on the environment)
-double distance_m = 0; //distance in meters
-int distance_cm = 0; //distance in centimeters
-
+int scanTime = 0;        //in seconds
+int rssi = 0;            //variable to store RSSI value (in dBm)
+const float A = -67;     // Measured RSSI at 1 meter from BLE device
+const int n = 2.8 ;      // Path-loss exponent (depends on the environment)
+double distance_m = 0;   //distance in meters
+int distance_cm = 0;     //distance in centimeters
+int samples_arr[1000] ;  //1000 elements array to compute average value of RSSI 
+int samples_counter = 0; 
+int average_value;
 
 // Extracting digits
 int thousands = 0, tens = 0, hundreds = 0, ones = 0 ;
@@ -42,7 +48,75 @@ int thousands = 0, tens = 0, hundreds = 0, ones = 0 ;
 // Characters to send on CAN Bus
 char d_thousands = 0 , d_hundreds = 0 , d_tens = 0 , d_ones = 0 ;
 
-//==================================================================================//
+//=======================================================================================================//
+//                                    APP Functions Prototypes                                           //
+//=======================================================================================================//
+
+void   canSender(void);
+double computeAverage(int arr[], int size);
+void   calculateDistance(int rssi);
+void   digits_extractor(int number);
+
+//=======================================================================================================//
+//                                     Functions Definitions                                             //
+//=======================================================================================================//
+
+void canSender(void) 
+{
+  digits_extractor(distance_cm);
+
+  Serial.print ("Sending packet ... ");
+
+  CAN.beginPacket (CAN_ID);  //sets the ID and clears the transmit buffer
+
+  //write data to buffer. data is not sent until endPacket() is called.
+  CAN.write (d_thousands);
+  CAN.write (d_hundreds); 
+  CAN.write (d_tens);
+  CAN.write (d_ones);
+
+  CAN.endPacket();
+  Serial.println ("done");
+}
+//=======================================================================================================//
+void digits_extractor(int number)
+{
+    thousands = (number / 1000) % 10;
+    hundreds = (number / 100) % 10;
+    tens = (number / 10) % 10;
+    ones = number % 10;
+
+    //Converting digits into Characters
+    d_thousands = thousands + '0';
+    d_hundreds = hundreds + '0';
+    d_tens = tens + '0';
+    d_ones = ones + '0';
+}
+//=======================================================================================================//
+void calculateDistance(int rssi)
+{
+  // Calculate distance using the empirical formula 
+  distance_m = pow(10.0, ((A - rssi) / (10.0 * n)) ); // In meters
+  distance_cm = distance_m * 100; //Convert it to centimeters 
+
+  Serial.print("Distance: ");
+  Serial.print(distance_cm);
+  Serial.println(" cm");
+}
+//=======================================================================================================//
+double computeAverage(int arr[], int size)
+{
+    int sum = 0;
+    for(int i = 0; i < size; i++)
+    {
+        sum += arr[i];
+    }
+    return (double)sum / size;
+}
+
+//=======================================================================================================//
+//                                      BLE Notification Callback                                        //
+//=======================================================================================================//
 
 static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify)
  {
@@ -55,7 +129,9 @@ static void notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, ui
     Serial.println();
 }
 
-//==================================================================================//
+//=======================================================================================================//
+//                                        BLE Client Callbacks                                           //
+//=======================================================================================================//
 
 class MyClientCallback : public BLEClientCallbacks 
 {
@@ -68,7 +144,9 @@ class MyClientCallback : public BLEClientCallbacks
   }
 };
 
-//==================================================================================//
+//=======================================================================================================//
+//                                       BLE Server Connection                                           //
+//=======================================================================================================//
 
 bool connectToServer()
 {
@@ -93,7 +171,6 @@ bool connectToServer()
     }
     Serial.println(" - Found our service");
 
-
     // Obtain a reference to the characteristic in the service of the remote BLE server.
     pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
     if (pRemoteCharacteristic == nullptr) {
@@ -111,7 +188,9 @@ bool connectToServer()
     }
 }
 
-//==================================================================================//
+//=======================================================================================================//
+//                                 BLE Advertised Device Callbacks                                       //
+//=======================================================================================================//
 
 /**
  * Scan for BLE servers and find the first one that advertises the service we are looking for.
@@ -134,7 +213,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   } // onResult
 }; // MyAdvertisedDeviceCallbacks
 
-//==================================================================================//
+//=======================================================================================================//
+//                                          Setup Function                                               //
+//=======================================================================================================//
 
 void setup() 
 {
@@ -173,7 +254,9 @@ void setup()
   }
 }
 
-//==================================================================================//
+//=======================================================================================================//
+//                                           Loop Function                                               //
+//=======================================================================================================//
 
 void loop() 
 {
@@ -200,60 +283,32 @@ void loop()
 
   if (connected)
   {
+    int _counter = 0;
     rssi = pClient->getRssi();
-    calculateDistance(rssi);
-    canSender();
+    samples_arr[samples_counter] = rssi;
+    samples_counter++;
+    if(samples_counter==999)
+    {     
+      samples_counter = 0 ;
+      for (int i = 0; i <samples_counter;i++){
+        if (samples_arr[i] >= -70)
+        {
+          _counter++;
+        }
+         if (_counter == 100)
+        {
+          Serial.print("done");
+          break;
+        }
+      }  
+    
+      average_value = computeAverage(samples_arr , 1000);
+      Serial.println(average_value);      
+      calculateDistance(average_value);
+    }
+
   }
+  canSender();
+//    delay(5); 
 
-  //  delay(5); 
-}
-
-//==================================================================================//
-
-void calculateDistance(int rssi)
-{
-  // Calculate distance using the empirical formula 
-  distance_m = pow(10.0, ((A - rssi) / (10.0 * n))); // In meters
-  // Serial.print("Distance: ");
-  // Serial.print(distance_m);
-  // Serial.println(" m");
-
-  distance_cm = distance_m * 100; //Convert it to centimeters 
-  Serial.print("Distance: ");
-  Serial.print(distance_cm);
-  Serial.println(" cm");
-
-  digits_extractor(distance_cm);
-}
-
-
-void digits_extractor(int number)
-{
-    thousands = (number / 1000) % 10;
-    hundreds = (number / 100) % 10;
-    tens = (number / 10) % 10;
-    ones = number % 10;
-
-    //Converting digits into Characters
-    d_thousands = thousands + '0';
-    d_hundreds = hundreds + '0';
-    d_tens = tens + '0';
-    d_ones = ones + '0';
-}
-
-void canSender() 
-{
-  // send packet: id is 11 bits, packet can contain up to 8 bytes of data
-  Serial.print ("Sending packet ... ");
-
-  CAN.beginPacket (CAN_ID);  //sets the ID and clears the transmit buffer
-
-  //write data to buffer. data is not sent until endPacket() is called.
-  CAN.write (d_thousands);
-  CAN.write (d_hundreds); 
-  CAN.write (d_tens);
-  CAN.write (d_ones);
-
-  CAN.endPacket();
-  Serial.println ("done");
 }
