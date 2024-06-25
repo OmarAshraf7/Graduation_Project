@@ -1,0 +1,10 @@
+20:44:27 **** Incremental Build of configuration Debug for project Control_Senoloid ****
+make -j16 all 
+arm-none-eabi-size  Control_Senoloid.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8056	     12	   1676	   9744	   2610	Control_Senoloid.elf
+Finished building: default.size.stdout
+ 
+
+20:44:27 Build Finished. 0 errors, 0 warnings. (took 183ms)
+
