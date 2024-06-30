@@ -1,161 +1,161 @@
-/* USER CODE BEGIN Header */
-/**
-  **************************
-  * @file           : main.c
-  * @brief          : Main program body
-  **************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  **************************
-  */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
+/*********************************************************************************************************
+ *                      				     Includes                                                    *
+ *********************************************************************************************************/
+
 #include "main.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+/*********************************************************************************************************
+ *                      				  Private Variables                                              *
+ *********************************************************************************************************/
 
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
-/* USER CODE BEGIN PV */
+/*********************************************************************************************************
+ *                                   Private Function Prototypes                                         *
+ *********************************************************************************************************/
 
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
+/*********************************************************************************************************
+ *                      				  Global Variables                                               *
+ *********************************************************************************************************/
+ 
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
+
+volatile bool txFlag = 0; /* msg sent flag */
+volatile bool rxFlag = 0; /* msg recieved flag */
 
 uint8_t TxData[8];
 uint8_t RxData[8];
 
+unit_8  unlock_size  = 6 ;
+unit_8  lock_size    = 4 ;
+char    unlock[unlock_size] = "unlock";
+char    lock  [lock_size]   = "lock";
+
 uint32_t TxMailbox;
 
-int datacheck = 0;
+/*********************************************************************************************************
+ *                      			Global Functions Prototypes                                          *
+ *********************************************************************************************************/
+ 
+void    Solenoid_lock(void);
+void    Solenoid_unlock(void);
+uint8_t check_can_message (void);
 
 
+/*********************************************************************************************************
+ *                      			Global Function Definitions                                          *
+ *********************************************************************************************************/
+
+void Solenoid_lock(void)
+{
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 0);
+}
+
+void Solenoid_unlock(void)
+{
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);	
+}
+
+uint8_t check_can_message (void)
+{
+	uint_8 unlock_counter = 0;
+	uint_8 lock_counter   = 0;
+	unit_8 i;
+	
+	for (i = 0 ; i < unlock_size ; i++)
+	{
+		if(RxData[i] == unlock[i] )
+		{
+			unlock_counter ++ ;
+		}
+	}
+	
+	if (unlock_counter == unlock_size)
+	{
+		Solenoid_unlock();
+		return 1;
+	}
+
+	for (i = 0 ; i < lock_size ; i++)
+	{
+		if(RxData[i] == lock[i] )
+		{
+			lock_counter ++ ;
+		}
+	}
+	
+	if (lock_counter == lock_size)
+	{
+		Solenoid_lock();
+		return 1;
+	}
+	return 0;
+
+}
+
+/*********************************************************************************************************
+ *                      				 CAN interrupt Callback                                          *
+ *********************************************************************************************************/
+ 
 void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &RxHeader, RxData);
-
-//	if (RxHeader.DLC == 8)
-//	{
-//		datacheck = 1;
-//	}
+	rxFlag = 1;
 }
 
-/* USER CODE END 0 */
+/*********************************************************************************************************
+ *                      					Main Function                                                *
+ *********************************************************************************************************/
 
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
 int main(void)
 {
-
-  /* USER CODE BEGIN 1 */
-
-
-  /* USER CODE END 1 */
-
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
   /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN_Init();
-  /* USER CODE BEGIN 2 */
 
   HAL_CAN_Start(&hcan);
 
-  // Activate the notification
+  /* Activate the notification */
   HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO1_MSG_PENDING);
-  TxHeader.DLC = 2;  // data length
+  
+  TxHeader.DLC = 8;  /* data length */
   TxHeader.IDE = CAN_ID_STD;
   TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.StdId = 0x103;  // ID
-  TxData[0] = 200;  // ms delay
-  TxData[1] = 20;  // loop rep
+  TxHeader.StdId = 0x103;  /* ID */
+  
+//  TxData[0] = ; 
+//  TxData[1] = ;  
 
-  /* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-		if (RxData[0]== 'H'){
-					  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-					  HAL_Delay(500);
-		}
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-//
-//	  HAL_Delay (1000);
-//	  HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO1, &RxHeader, RxData);
-//
-////	  if (datacheck)
-////	  {
-//		  if (RxData[0]== 'H'){
-//			  HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-//			  HAL_Delay(500);
-//		  }
-//		  datacheck = 0;
-
-		//  HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
-
-	 // }
+	  if(rxFlag == 1) /* rx interrupt has occured */
+	  {
+		 check_can_message();
+		 rxFlag = 0; /* clear rx flag */
+	  }
   }
-  /* USER CODE END 3 */
 }
+
+
+/*********************************************************************************************************
+ *                      			Private Function Definitions                                         *
+ *********************************************************************************************************/
 
 /**
   * @brief System Clock Configuration
@@ -200,14 +200,6 @@ void SystemClock_Config(void)
   */
 static void MX_CAN_Init(void)
 {
-
-  /* USER CODE BEGIN CAN_Init 0 */
-
-  /* USER CODE END CAN_Init 0 */
-
-  /* USER CODE BEGIN CAN_Init 1 */
-
-  /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
   hcan.Init.Prescaler = 1;
   hcan.Init.Mode = CAN_MODE_NORMAL;
@@ -224,12 +216,11 @@ static void MX_CAN_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN CAN_Init 2 */
 
   CAN_FilterTypeDef canfilterconfig;
 
   canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
-  canfilterconfig.FilterBank = 0;  // which filter bank to use from the assigned ones
+  canfilterconfig.FilterBank = 0;  /* which filter bank to use from the assigned ones */
   canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO1;
   canfilterconfig.FilterIdHigh = 0x0000;
   canfilterconfig.FilterIdLow = 0x0000;
@@ -237,11 +228,9 @@ static void MX_CAN_Init(void)
   canfilterconfig.FilterMaskIdLow = 0x0000;
   canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
   canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  canfilterconfig.SlaveStartFilterBank = 0;  // doesn't matter in single can controllers
+  canfilterconfig.SlaveStartFilterBank = 0;  /* doesn't matter in single can controllers */
 
   HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
-
-  /* USER CODE END CAN_Init 2 */
 
 }
 
@@ -253,30 +242,22 @@ static void MX_CAN_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PB12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  /*Configure GPIO pin : PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
 }
 
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -284,13 +265,10 @@ static void MX_GPIO_Init(void)
   */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
@@ -303,9 +281,7 @@ void Error_Handler(void)
   */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

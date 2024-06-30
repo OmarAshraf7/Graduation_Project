@@ -1,3 +1,7 @@
+//=======================================================================================================//
+//                                             Includes                                                  //
+//=======================================================================================================//
+
 #include "BLEDevice.h"
 #include <BLEUtils.h>
 #include <BLEScan.h>
@@ -11,7 +15,7 @@
 
 #define TX_GPIO_NUM   4  // Connects to CTX
 #define RX_GPIO_NUM   5  // Connects to CRX
-#define CAN_ID        0x14 
+#define CAN_ID        0x15 
 
 //=======================================================================================================//
 //                                           BLE UUIDs                                                   //
@@ -34,8 +38,8 @@ BLEClient* pClient = BLEDevice::createClient();
 
 int scanTime = 0;        //in seconds
 int rssi = 0;            //variable to store RSSI value (in dBm)
-const float A = -67;     // Measured RSSI at 1 meter from BLE device
-const int n = 2.8 ;      // Path-loss exponent (depends on the environment)
+const int A = -67;     // Measured RSSI at 1 meter from BLE device
+const int n =  2;      // Path-loss exponent (depends on the environment)
 double distance_m = 0;   //distance in meters
 int distance_cm = 0;     //distance in centimeters
 int samples_arr[1000] ;  //1000 elements array to compute average value of RSSI 
